@@ -51,7 +51,9 @@ PBX טכנוליין ──GET──▶ /ivr   ──▶ SQLite ◀──  מש�
 
    שאר המשתנים ב‑`.env.example` הם אופציונליים.
 4. **Container HTTP Port**: `80`.
-5. **דיפלוי**: `caprover deploy` מהתיקייה, או חיבור ל‑Git. קפרובר מזהה את
+5. **דיפלוי**: `caprover deploy` מהתיקייה, או חיבור ל‑Git (לשונית Deployment →
+   Deploy from Github/Bitbucket/Gitlab). בשדה Branch כתבו `main` באותיות קטנות —
+   גיט מבדיל בין אותיות גדולות וקטנות, ו‑`MAIN` נכשל בשיבוט. קפרובר מזהה את
    `captain-definition` לבד.
 6. **HTTPS**: הפעילו Force HTTPS. חובה — הסיסמאות והעוגייה עוברות שם.
 7. היכנסו לאתר, לשונית "סנכרון והגדרות", ולחצו **סנכרון עכשיו**. אמורות
