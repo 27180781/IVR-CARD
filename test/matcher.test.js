@@ -68,3 +68,74 @@ test('קלט ריק', () => {
   const { candidates } = rankStores('', STORES, []);
   assert.equal(candidates.length, 0);
 });
+
+/* ---------- שמות אמיתיים מרשימת נדרים ---------- */
+
+const REAL = [
+  ['930', 'CHEMISE', true], ['475', 'FINE WEAR', true],
+  ['464', 'REAL MAN - ריל מן', true], ['325', 'BAGIR בגיר', true],
+  ['923', 'מימו', true], ['610', 'מימו', false], ['1284', 'גוונים', true], ['661', 'גוונים', true],
+  ['552', 'אקסוס', true], ['442', 'אקסוס טבריה', true], ['662', 'אקסוס צפת', true], ['488', 'אקסוס אלעד', true],
+  ['786', 'סי יו', true], ['1016', 'סי יו cuwear', true],
+  ['349', 'מאפיית נחמה', false], ['954', 'מאפיית נחמה - בית שמש', true], ['1286', 'קרפור', false],
+  ['302', 'מעיין 2000', true], ['539', "מעיין בית - קינג ג'ורג'", true],
+].map(([id, n, en]) => ({ store_id: id, store_name: n, enabled: en, norm: normalize(n), skel: skeleton(normalize(n)) }));
+
+function askReal(text, aliases = []) {
+  const { candidates } = rankStores(text, REAL, aliases);
+  return { ...decide(candidates, opts), candidates };
+}
+
+test('אותיות לטיניות: גודל האות לא משנה', () => {
+  assert.equal(normalize('Fine Wear'), normalize('FINE WEAR'));
+  const r = askReal('fine wear');
+  assert.equal(r.kind, 'auto');
+  assert.equal(r.store.store_name, 'FINE WEAR');
+});
+
+test('כפילות באותו שם: מוצגת פעם אחת, הפעילה קודמת', () => {
+  const r = askReal('מימו');
+  assert.equal(r.kind, 'auto', JSON.stringify(r.candidates));
+  assert.equal(r.store.store_id, '923');
+  assert.equal(r.candidates.filter((c) => c.norm === normalize('מימו')).length, 1);
+  assert.equal(askReal('גוונים').kind, 'auto');
+});
+
+test('שם מדויק מנצח סניפים קרובים', () => {
+  const r = askReal('אקסוס');
+  assert.equal(r.kind, 'auto', JSON.stringify(r.candidates.slice(0, 2)));
+  assert.equal(r.store.store_name, 'אקסוס');
+  const t = askReal('אקסוס טבריה');
+  assert.equal(t.kind, 'auto');
+  assert.equal(t.store.store_name, 'אקסוס טבריה');
+});
+
+test('שם דו-לשוני: החלק העברי מספיק', () => {
+  const r = askReal('ריל מן');
+  assert.equal(r.kind, 'auto', JSON.stringify(r.candidates.slice(0, 2)));
+  assert.equal(r.store.store_name, 'REAL MAN - ריל מן');
+  assert.equal(askReal('בגיר').kind, 'auto');
+  const s = askReal('סי יו');
+  assert.equal(s.kind, 'auto');
+  assert.equal(s.store.store_name, 'סי יו'); // ההתאמה המלאה גוברת על החלקית
+});
+
+test('רשומה מדויקת מושבתת לא מסתירה סניף פעיל', () => {
+  const r = askReal('מאפיית נחמה');
+  assert.equal(r.kind, 'confirm');
+  assert.ok(r.candidates.some((c) => c.store_name === 'מאפיית נחמה - בית שמש'));
+  const k = askReal('קרפור'); // אין חלופה פעילה — מכריזים, והקו יאמר שההסכם אינו פעיל
+  assert.equal(k.kind, 'auto');
+  assert.equal(k.store.enabled, false);
+});
+
+test('מספר בשם עברי לא נחשב חלק לטיני', () => {
+  assert.notEqual(askReal('מעיין').kind, 'auto'); // "מעיין 2000" ו"מעיין בית" — צריך לשאול
+});
+
+test('שם באנגלית בלבד: לא נמצא בלי כינוי, נמצא איתו', () => {
+  assert.equal(askReal('שמיז').kind, 'none');
+  const r = askReal('שמיז', [{ alias: 'שמיז', store_id: '930' }]);
+  assert.equal(r.kind, 'auto');
+  assert.equal(r.store.store_name, 'CHEMISE');
+});

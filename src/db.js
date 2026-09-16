@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import { cfg } from './config.js';
-import { normalize, skeleton } from './matcher.js';
+import { normalize, skeleton, NORM_VERSION } from './matcher.js';
 
 fs.mkdirSync(path.dirname(cfg.dbFile), { recursive: true });
 
@@ -102,6 +102,29 @@ export function setSetting(key, value) {
      ON CONFLICT(key) DO UPDATE SET value = excluded.value`
   ).run(key, value == null ? null : String(value));
 }
+
+/* ---------- נרמול מחדש אחרי שינוי במנוע ---------- */
+
+// כשחוקי normalize משתנים, המפתחות השמורים חייבים להתעדכן מיד,
+// ולא לחכות לסנכרון הבא (שעלול להגיע רק אחרי כמה שעות).
+function renormalizeIfNeeded() {
+  if (getSetting('norm_version') === String(NORM_VERSION)) return;
+  const run = db.transaction(() => {
+    const updStore = db.prepare('UPDATE stores SET norm = ?, skel = ? WHERE store_id = ?');
+    for (const r of db.prepare('SELECT store_id, store_name FROM stores').all()) {
+      const norm = normalize(r.store_name);
+      updStore.run(norm, skeleton(norm), r.store_id);
+    }
+    const updAlias = db.prepare('UPDATE aliases SET norm = ? WHERE id = ?');
+    for (const a of db.prepare('SELECT id, alias FROM aliases').all()) {
+      updAlias.run(normalize(a.alias), a.id);
+    }
+    setSetting('norm_version', NORM_VERSION);
+  });
+  run();
+  console.log(`[db] מפתחות החיפוש חושבו מחדש (גרסת נרמול ${NORM_VERSION})`);
+}
+renormalizeIfNeeded();
 
 /* ---------- חנויות ---------- */
 

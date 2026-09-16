@@ -8,6 +8,9 @@
 
 const FINALS = { ך: 'כ', ם: 'מ', ן: 'נ', ף: 'פ', ץ: 'צ' };
 
+/** מספר גרסת הנרמול — כשחוקי normalize משתנים, המפתחות השמורים במסד מחושבים מחדש */
+export const NORM_VERSION = 2;
+
 /** מילות רעש שה-STT נוטה להוסיף סביב שם החנות */
 const FILLER = [
   'אני רוצה לבדוק את',
@@ -40,6 +43,7 @@ export function normalize(text) {
   s = s.replace(/[׳״'"`\u2018\u2019\u201C\u201D]/g, ''); // גרש/גרשיים
   s = s.replace(/[^\p{L}\p{N}]+/gu, ' '); // כל השאר → רווח
   s = s.replace(/[ךםןףץ]/g, (c) => FINALS[c]);
+  s = s.toLowerCase(); // שמות לטיניים: Fox ו-FOX זהים
   return s.replace(/\s+/g, ' ').trim();
 }
 
@@ -192,6 +196,28 @@ export function similarity(qNorm, tNorm) {
   return Math.max(...scores);
 }
 
+const HEB = /[\u0590-\u05FF]/;
+const LAT = /[a-z]/;
+
+/**
+ * שם דו-לשוני ("REAL MAN - ריל מן") מפוצל לחלק העברי ולחלק הלטיני,
+ * כדי שמי שאומר "ריל מן" יקבל התאמה מלאה ולא חלקית.
+ * מספרים נשארים בשני החלקים, כך ש"מעיין 2000" לא נחשב דו-לשוני.
+ */
+export function scriptParts(norm) {
+  if (!HEB.test(norm) || !LAT.test(norm)) return [];
+  const words = norm.split(' ').filter(Boolean);
+  const heb = words.filter((w) => !LAT.test(w));
+  const lat = words.filter((w) => !HEB.test(w));
+  const parts = [];
+  for (const p of [heb, lat]) {
+    if (!p.length || p.length === words.length) continue;
+    const joined = p.join(' ');
+    if (joined.replace(/\s/g, '').length >= 2) parts.push(joined);
+  }
+  return parts;
+}
+
 /**
  * מדרג רשימת חנויות מול טקסט שנאמר.
  * stores: [{ store_id, store_name, enabled, norm, skel }]
@@ -223,6 +249,10 @@ export function rankStores(spoken, stores, aliases = [], opts = {}) {
   for (const s of stores) {
     const tNorm = s.norm || normalize(s.store_name);
     let score = similarity(query, tNorm);
+    // התאמה לחלק אחד של שם דו-לשוני שווה כמעט כמו התאמה מלאה
+    for (const part of scriptParts(tNorm)) {
+      score = Math.max(score, similarity(query, part) * 0.995);
+    }
     let via = null;
     const b = boost.get(String(s.store_id));
     if (b && b.score > score) {
@@ -239,8 +269,22 @@ export function rankStores(spoken, stores, aliases = [], opts = {}) {
     }
   }
 
-  scored.sort((a, b) => b.score - a.score || a.store_name.localeCompare(b.store_name, 'he'));
-  return { query, raw, candidates: scored.slice(0, limit) };
+  // כפילויות בנדרים (רשומה ישנה מושבתת לצד רשומה פעילה באותו שם):
+  // מציגים אחת בלבד, עדיפות לפעילה, כדי לא לשאול "מימו או מימו?"
+  const byNorm = new Map();
+  for (const c of scored) {
+    const key = c.norm || normalize(c.store_name);
+    const prev = byNorm.get(key);
+    const better =
+      !prev ||
+      (!!c.enabled && !prev.enabled) ||
+      (!!c.enabled === !!prev.enabled && c.score > prev.score);
+    if (better) byNorm.set(key, c);
+  }
+  const unique = [...byNorm.values()];
+
+  unique.sort((a, b) => b.score - a.score || a.store_name.localeCompare(b.store_name, 'he'));
+  return { query, raw, candidates: unique.slice(0, limit) };
 }
 
 /**
@@ -252,6 +296,13 @@ export function rankStores(spoken, stores, aliases = [], opts = {}) {
 export function decide(candidates, { autoThreshold = 0.9, confirmThreshold = 0.62 } = {}) {
   if (!candidates.length) return { kind: 'none', candidates: [] };
   const [top, second] = candidates;
+
+  // שם מדויק מנצח גם כשיש סניפים קרובים ("אקסוס" מול "אקסוס צפת"),
+  // אלא אם הרשומה המדויקת מושבתת ויש חלופה פעילה סבירה — אז שואלים.
+  const exact = top.score >= 0.999 && (!second || second.score < 0.999);
+  const activeAlt = candidates.some((c, i) => i > 0 && c.enabled && c.score >= confirmThreshold);
+  if (exact && (top.enabled || !activeAlt)) return { kind: 'auto', store: top, candidates };
+
   const clear = !second || top.score - second.score >= 0.06;
   if (top.score >= autoThreshold && clear) return { kind: 'auto', store: top, candidates };
   const shortlist = candidates.filter((c) => c.score >= confirmThreshold).slice(0, 3);
