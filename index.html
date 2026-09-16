@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>בדיקת חנויות · נדרים קארד</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">בדיקת חנויות<span>קו טלפוני · נדרים קארד</span></div>
+    <div class="pulse" id="pulse">טוען…</div>
+    <button class="linkish" id="logout">יציאה</button>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" data-panel="feed" aria-selected="true">פניות</button>
+    <button class="tab" role="tab" data-panel="stores" aria-selected="false">חנויות</button>
+    <button class="tab" role="tab" data-panel="aliases" aria-selected="false">כינויים</button>
+    <button class="tab" role="tab" data-panel="settings" aria-selected="false">סנכרון והגדרות</button>
+  </nav>
+</header>
+
+<main>
+  <!-- פניות -->
+  <section class="panel" id="panel-feed">
+    <div class="filters">
+      <input type="search" id="q" placeholder="חיפוש בשם חנות, במה שנאמר או בטלפון">
+      <button class="chip" data-status="all" aria-pressed="true">הכול</button>
+      <button class="chip" data-status="found" aria-pressed="false">נמצאו</button>
+      <button class="chip" data-status="problem" aria-pressed="false">לא נמצאו</button>
+      <select id="range">
+        <option value="1">היום</option>
+        <option value="7" selected>שבוע אחרון</option>
+        <option value="30">חודש אחרון</option>
+        <option value="0">הכול</option>
+      </select>
+      <button class="mini" id="csv">ייצוא לאקסל</button>
+    </div>
+    <div class="feed" id="feed"></div>
+  </section>
+
+  <!-- חנויות -->
+  <section class="panel" id="panel-stores" hidden>
+    <div class="card">
+      <h2>בדיקה מהירה</h2>
+      <p class="hint">הקלידו שם כפי שמתקשר עשוי לומר אותו, וראו בדיוק מה המערכת תענה בטלפון.</p>
+      <div class="testbar">
+        <input class="field" id="testText" placeholder="למשל: סופר ברכה">
+        <button class="mini primary" id="testRun">בדיקה</button>
+      </div>
+      <div id="testOut"></div>
+    </div>
+    <div class="filters">
+      <input type="search" id="storeQ" placeholder="חיפוש חנות במאגר">
+    </div>
+    <div class="rows" id="stores"></div>
+  </section>
+
+  <!-- כינויים -->
+  <section class="panel" id="panel-aliases" hidden>
+    <div class="card">
+      <h2>כינויים</h2>
+      <p class="hint">כשמתקשר אומר שם שהמערכת לא מזהה, שייכו אותו לחנות מתוך רשימת הפניות. בפעם הבאה הזיהוי יהיה מיידי.</p>
+    </div>
+    <div class="rows" id="aliases"></div>
+  </section>
+
+  <!-- הגדרות -->
+  <section class="panel" id="panel-settings" hidden>
+    <div class="card">
+      <h2>סנכרון מול נדרים</h2>
+      <p class="hint" id="syncInfo">טוען…</p>
+      <button class="mini primary" id="syncNow">סנכרון עכשיו</button>
+    </div>
+    <div class="card">
+      <h2>מול מה בודקים</h2>
+      <p class="hint">ברירת המחדל היא כל החנויות שבהסכם. אפשר לצמצם לקבוצת חנויות אחת מנדרים קארד.</p>
+      <select class="field" id="scope"></select>
+    </div>
+  </section>
+</main>
+
+<script src="/app.js"></script>
+</body>
+</html>

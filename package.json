@@ -1,0 +1,20 @@
+{
+  "name": "nedarim-store-checker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "בדיקת קיום חנות בנדרים קארד דרך שלוחה קולית בטכנוליין + אתר ניהול",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --env-file=.env --watch src/server.js",
+    "test:match": "node --test test/matcher.test.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "express": "^4.21.2"
+  },
+  "engines": {
+    "node": ">=20.11"
+  }
+}
